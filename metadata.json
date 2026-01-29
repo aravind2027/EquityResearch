@@ -1,0 +1,5 @@
+{
+  "name": "Copy of EquityResearchPro",
+  "description": "An automated investment research platform that retrieves official company documents and generates professional equity analyst reports and investment memos using the Gemini API.",
+  "requestFramePermissions": []
+}
