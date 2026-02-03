@@ -1,8 +1,6 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 const THINKING_CONFIG = {
   thinkingConfig: { thinkingBudget: 32768 }
 };
@@ -29,12 +27,8 @@ async function fetchWithTimeout(url: string, timeout = 5000) {
 
 /**
  * Best-effort verification of PDF links.
- * Performs HEAD requests to check for 200 OK and PDF content-type.
- * Note: Many investor relations sites block CORS (Cross-Origin Resource Sharing), 
- * which will cause the verification to return 'unverifiable' despite the link being valid.
  */
 async function verifyPdfLinks(markdown: string): Promise<string> {
-  // Regex to find potential PDF URLs in the markdown text
   const urlRegex = /https?:\/\/[^\s|)]+?\.pdf/gi;
   const urls = Array.from(new Set(markdown.match(urlRegex) || []));
 
@@ -51,8 +45,6 @@ async function verifyPdfLinks(markdown: string): Promise<string> {
         }
         return { url, status: 'dead' };
       } catch (e) {
-        // If we hit a CORS error or timeout, we cannot definitively say the link is bad.
-        // We mark it as unverifiable rather than dead.
         return { url, status: 'unverifiable' };
       }
     })
@@ -91,7 +83,7 @@ async function verifyPdfLinks(markdown: string): Promise<string> {
 }
 
 export const getDocumentSources = async (companyName: string) => {
-  const ai = getAI();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = `You are a professional financial research analyst. Your absolute priority is to find OFFICIAL PDF documents for ${companyName}.
   
 CRITICAL RULE: Every single link provided MUST end with '.pdf'. If a link ends in .html, .aspx, or is a generic IR page, it is REJECTED.
@@ -123,7 +115,7 @@ Format: Section A followed by Section B. Do not include introductory or concludi
 };
 
 export const getEquityReport = async (companyName: string, context: string) => {
-  const ai = getAI();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = `Based exclusively on the official PDF documents retrieved for ${companyName}, draft a professional Equity Analyst Report.
 
 Context of identified documents:
@@ -153,7 +145,7 @@ Tone: institutional, factual, objective. Do not use fluff. Provide a high-densit
 };
 
 export const getInvestmentMemo = async (companyName: string, context: string) => {
-  const ai = getAI();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = `Produce a high-conviction 5-page Investment Memo for ${companyName}.
   
 Context and previous report:

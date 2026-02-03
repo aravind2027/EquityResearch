@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ResearchStep, ResearchState, Artifact, ResearchHistoryItem } from './types';
 import { getDocumentSources, getEquityReport, getInvestmentMemo } from './services/geminiService';
 import { Button } from './components/Button';
@@ -8,7 +8,21 @@ import { ArtifactCard } from './components/ArtifactCard';
 
 const HISTORY_KEY = 'equity_research_history';
 
+// Declare window extension for TypeScript
+// Fixed the conflict by defining the expected AIStudio interface name
+interface AIStudio {
+  hasSelectedApiKey: () => Promise<boolean>;
+  openSelectKey: () => Promise<void>;
+}
+
+declare global {
+  interface Window {
+    aistudio: AIStudio;
+  }
+}
+
 export default function App() {
+  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
   const [state, setState] = useState<ResearchState>({
     companyName: '',
     currentStep: ResearchStep.IDLE,
@@ -17,8 +31,25 @@ export default function App() {
     isProcessing: false
   });
 
-  // Load history on mount
+  // Check for API key on mount
   useEffect(() => {
+    const checkKey = async () => {
+      // If process.env.API_KEY is already set (e.g. from Vercel), we're good
+      if (process.env.API_KEY) {
+        setHasApiKey(true);
+        return;
+      }
+      
+      // Otherwise, check for aistudio selected key
+      try {
+        const selected = await window.aistudio.hasSelectedApiKey();
+        setHasApiKey(selected);
+      } catch (e) {
+        setHasApiKey(false);
+      }
+    };
+    checkKey();
+
     const savedHistory = localStorage.getItem(HISTORY_KEY);
     if (savedHistory) {
       try {
@@ -30,6 +61,16 @@ export default function App() {
     }
   }, []);
 
+  const handleConnectKey = async () => {
+    try {
+      await window.aistudio.openSelectKey();
+      // Assume success after opening dialog per instructions
+      setHasApiKey(true);
+    } catch (e) {
+      console.error("Failed to open key selection", e);
+    }
+  };
+
   const saveToHistory = (companyName: string, artifacts: Artifact[]) => {
     const newItem: ResearchHistoryItem = {
       companyName,
@@ -38,7 +79,6 @@ export default function App() {
     };
 
     setState(prev => {
-      // Filter out if company already exists to move it to top, and limit to 5
       const filteredHistory = prev.history.filter(item => 
         item.companyName.toLowerCase() !== companyName.toLowerCase()
       );
@@ -139,10 +179,19 @@ export default function App() {
 
     } catch (err: any) {
       console.error(err);
+      const errorMessage = err.message || '';
+      
+      // Handle the revoked key error case per requirements
+      if (errorMessage.includes("Requested entity was not found.")) {
+        setHasApiKey(false);
+        setState(prev => ({ ...prev, isProcessing: false, currentStep: ResearchStep.IDLE }));
+        return;
+      }
+
       setState(prev => ({ 
         ...prev, 
         isProcessing: false, 
-        error: err.message || 'An unexpected error occurred during research.',
+        error: errorMessage || 'An unexpected error occurred during research.',
         currentStep: ResearchStep.ERROR
       }));
     }
@@ -159,9 +208,49 @@ export default function App() {
     }));
   };
 
+  // Initial loading state while checking key
+  if (hasApiKey === null) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 text-blue-600 border-4 border-slate-200 border-t-current rounded-full"></div>
+      </div>
+    );
+  }
+
+  // Key Selection Screen
+  if (!hasApiKey) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-slate-200 p-8 text-center">
+          <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-6 text-blue-600">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Connect to Gemini API</h2>
+          <p className="text-slate-600 mb-8">
+            To generate institutional-grade research, this application requires access to a Gemini API key. Please connect your paid API key from Google AI Studio.
+          </p>
+          <div className="space-y-4">
+            <Button onClick={handleConnectKey} className="w-full py-4 text-lg">
+              Connect API Key
+            </Button>
+            <a 
+              href="https://ai.google.dev/gemini-api/docs/billing" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="block text-sm text-slate-400 hover:text-blue-600 transition-colors"
+            >
+              Learn about billing and requirements &rarr;
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={reset}>
@@ -178,7 +267,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="flex-1 max-w-7xl mx-auto px-4 py-12 w-full">
         <div className="max-w-3xl mx-auto text-center mb-12">
           <h2 className="text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">
@@ -189,7 +277,6 @@ export default function App() {
           </p>
         </div>
 
-        {/* Search Bar */}
         <div className="max-w-xl mx-auto mb-16">
           <form onSubmit={startResearch} className="relative group">
             <input
@@ -221,7 +308,6 @@ export default function App() {
           )}
         </div>
 
-        {/* Recent Searches (Only show if not currently processing and no results are showing) */}
         {!state.isProcessing && state.currentStep === ResearchStep.IDLE && state.history.length > 0 && (
           <div className="max-w-4xl mx-auto mb-16">
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6 px-4">Recent Analyses</h3>
@@ -245,12 +331,10 @@ export default function App() {
           </div>
         )}
 
-        {/* Progress Section */}
         {state.currentStep !== ResearchStep.IDLE && state.currentStep !== ResearchStep.ERROR && state.currentStep !== ResearchStep.COMPLETED && (
           <ResearchProgress currentStep={state.currentStep} isProcessing={state.isProcessing} />
         )}
 
-        {/* Results Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
           {state.artifacts.map((artifact) => (
             <ArtifactCard 
@@ -286,7 +370,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Footer */}
       <footer className="py-12 border-t border-slate-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 flex flex-col items-center gap-6">
           <div className="flex gap-8 text-slate-400 text-sm font-medium">
