@@ -7,15 +7,17 @@ const THINKING_CONFIG = {
 
 export const getDocumentSources = async (companyName: string) => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const prompt = `You are a research assistant specialized in retrieving and verifying official company filings and investor relations documents for ${companyName}.
-  
-Your task is to identify the most critical official PDF links from the last 5 years:
-1. Annual Reports / 10-K Filings (2020-2024).
-2. Most recent Investor Day or Capital Markets Day presentation.
-3. Most recent Quarterly Earnings result presentation.
+  const prompt = `You are a world-class Equity Research Assistant specialized in sourcing and verifying primary regulatory filings and investor relations materials for ${companyName}.
 
-CRITICAL: Every link MUST be a direct link to a PDF.
-Format your output as a clean Markdown report with a table of sources and a brief summary of what each document contains.`;
+Your mission is to perform a deep-dive search for the following official documents from the last 5 fiscal years:
+1. **Official Annual Reports / 10-K Filings** (Focus on 2020-2024).
+2. **Most Recent Capital Markets Day (CMD) or Investor Day Presentation**.
+3. **Latest Quarterly Earnings (10-Q) and accompanying Slide Decks**.
+
+CRITICAL REQUIREMENTS:
+- You must provide direct, clickable links to official PDF files (SEC.gov, investor relations subdomains).
+- Verify the relevance of each link to the specific entity "${companyName}".
+- Format the output as a professional research briefing with a table of primary sources and a summary of the 'Alpha' or key narrative contained in each document.`;
 
   const response = await ai.models.generateContent({
     model: "gemini-3-pro-preview",
@@ -31,19 +33,20 @@ Format your output as a clean Markdown report with a table of sources and a brie
 
 export const getEquityReport = async (companyName: string, docContext: string) => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const prompt = `You are a Senior Equity Research Analyst. Based on the following document context for ${companyName}:
+  const prompt = `You are a Senior Equity Research Analyst at a major global investment bank. Based on the following source materials for ${companyName}:
 
 ${docContext}
 
-Draft a comprehensive 1,500-word Equity Research Report.
-Include:
-1. Investment Thesis
-2. Business Model Analysis
-3. Competitive Positioning (Moat Analysis)
-4. Financial Performance Review
-5. Risks & Sensitivities
+Draft a comprehensive, institutional-grade Equity Research Report (approx. 1,500 words).
+Structure:
+1. **Executive Summary & Investment Thesis**: High-level conviction.
+2. **Company Overview & Segment Analysis**: How do they actually make money?
+3. **Moat Analysis**: Sustainable competitive advantages (Porter's Five Forces).
+4. **Financial Health & KPI Deep-Dive**: Analysis of margins, ROIC, and leverage.
+5. **Valuation Discussion**: Key drivers for multiple expansion/contraction.
+6. **Key Investment Risks**: Regulatory, macroeconomic, and competitive threats.
 
-Use professional, institutional-grade language. Focus on the 'economic quality' of the business.`;
+Tone: Professional, objective, data-driven, and insightful. Avoid fluff. Focus on economic moats and capital allocation.`;
 
   const response = await ai.models.generateContent({
     model: "gemini-3-pro-preview",
@@ -58,16 +61,19 @@ Use professional, institutional-grade language. Focus on the 'economic quality' 
 
 export const getInvestmentMemo = async (companyName: string, reportContext: string) => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const prompt = `You are a Portfolio Manager at a top-tier hedge fund. Based on the Analyst Report provided below for ${companyName}:
+  const prompt = `You are the Chief Investment Officer (CIO) of a high-conviction hedge fund. You have just received the following Analyst Report for ${companyName}:
 
 ${reportContext}
 
-Create a high-conviction 5-page Investment Memo for the Investment Committee.
-The memo should be punchy, data-driven, and focus on:
-- The "Variant Perception": Why is the market wrong?
-- Asymmetric Risk/Reward: Quantify the upside vs the downside.
-- Key Performance Indicators (KPIs) to track over the next 12 months.
-- Final Recommendation (Buy/Hold/Sell) with a target price justification.`;
+Prepare a punchy, 5-page Investment Committee Memo. 
+This memo must answer:
+- **The "Variant Perception"**: What does the market currently misunderstand about this stock?
+- **Asymmetric Risk/Reward**: What is the Bull/Base/Bear case skew?
+- **Catalyst Path**: What specific events will unlock value in the next 12-18 months?
+- **Operational Benchmarks**: Which KPIs should we track to know if our thesis is broken?
+- **Final Verdict**: Buy/Sell/Hold with a clear target price and justification.
+
+Style: Direct, action-oriented, and skeptical of consensus.`;
 
   const response = await ai.models.generateContent({
     model: "gemini-3-pro-preview",
